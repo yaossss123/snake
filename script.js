@@ -26,14 +26,14 @@ let gameInterval;
 let gameSpeed;
 let score = 0;
 let isPaused = false;
-let isGameOver = true;
+let isGameOver = false;
+let isGameStarted = false;
 let obstacles = []; // 障碍物数组
-let movingObstacles = []; // 移动的障碍物数组
-let obstacleMovementInterval; // 障碍物移动间隔
 let powerUp = null; // 能力提升道具
 let powerUpActive = false; // 是否激活能力提升
 let powerUpTimer = null; // 能力提升计时器
 let powerUpType = null; // 能力提升类型
+let powerUpStartTime = null; // 能力提升开始时间
 
 // 大食物配置
 const BIG_FOOD_DURATION = 10000; // 大食物持续时间（毫秒）
@@ -41,12 +41,10 @@ const BIG_FOOD_APPEAR_THRESHOLD = 3; // 每吃几个普通食物出现大食物
 const BIG_FOOD_MAX_SCORE = 50; // 大食物最高分数
 
 // 能力提升道具配置
-const POWER_UP_DURATION = 8000; // 能力提升持续时间（毫秒）
+const POWER_UP_DURATION = 15000; // 能力提升持续时间（毫秒）
 const POWER_UP_APPEAR_CHANCE = 0.15; // 每次吃食物后出现能力提升道具的概率
 const POWER_UP_TYPES = [
-    { type: 'invincible', color: '#FFD700', name: '无敌' }, // 无敌（可穿过障碍物和自身）
-    { type: 'speed', color: '#00BFFF', name: '加速' }, // 加速
-    { type: 'slow', color: '#9932CC', name: '减速' } // 减速
+    { type: 'doubleScore', color: '#FFD700', name: '得分翻倍' } // 得分翻倍
 ];
 
 // 难度设置
@@ -65,25 +63,20 @@ function generateObstacles() {
     obstacles = [];
     movingObstacles = [];
     
-    // 根据难度生成不同数量的障碍物
+    // 根据难度生成不同数量的静态障碍物
     let obstacleCount;
-    let movingObstacleCount;
     switch (difficultySelect.value) {
         case 'easy':
-            obstacleCount = 5;
-            movingObstacleCount = 1;
+            obstacleCount = 8;
             break;
         case 'medium':
-            obstacleCount = 8;
-            movingObstacleCount = 2;
+            obstacleCount = 15;
             break;
         case 'hard':
-            obstacleCount = 12;
-            movingObstacleCount = 3;
+            obstacleCount = 25;
             break;
         default:
-            obstacleCount = 5;
-            movingObstacleCount = 1;
+            obstacleCount = 8;
     }
     
     // 生成静态障碍物
@@ -139,179 +132,10 @@ function generateObstacles() {
         obstacles.push(obstaclePosition);
     }
     
-    // 生成移动障碍物
-    for (let i = 0; i < movingObstacleCount; i++) {
-        let obstaclePosition;
-        let isValid;
-        
-        do {
-            isValid = true;
-            obstaclePosition = {
-                x: Math.floor(Math.random() * gridWidth),
-                y: Math.floor(Math.random() * gridHeight),
-                direction: ['up', 'down', 'left', 'right'][Math.floor(Math.random() * 4)],
-                color: `hsl(${Math.floor(Math.random() * 360)}, 70%, 50%)`
-            };
-            
-            // 检查是否与蛇重叠
-            for (let segment of snake) {
-                if (segment.x === obstaclePosition.x && segment.y === obstaclePosition.y) {
-                    isValid = false;
-                    break;
-                }
-            }
-            
-            // 检查是否与食物重叠
-            if (food.x === obstaclePosition.x && food.y === obstaclePosition.y) {
-                isValid = false;
-            }
-            
-            // 检查是否与大食物重叠
-            if (bigFood && bigFood.x === obstaclePosition.x && bigFood.y === obstaclePosition.y) {
-                isValid = false;
-            }
-            
-            // 检查是否与其他障碍物重叠
-            for (let obstacle of obstacles) {
-                if (obstacle.x === obstaclePosition.x && obstacle.y === obstaclePosition.y) {
-                    isValid = false;
-                    break;
-                }
-            }
-            
-            // 检查是否与其他移动障碍物重叠
-            for (let obstacle of movingObstacles) {
-                if (obstacle.x === obstaclePosition.x && obstacle.y === obstaclePosition.y) {
-                    isValid = false;
-                    break;
-                }
-            }
-            
-            // 确保障碍物不会出现在蛇头前方的几个格子内
-            const headX = snake[0].x;
-            const headY = snake[0].y;
-            const safeDistance = 7; // 移动障碍物需要更大的安全距离
-            
-            if (Math.abs(obstaclePosition.x - headX) < safeDistance && 
-                Math.abs(obstaclePosition.y - headY) < safeDistance) {
-                isValid = false;
-            }
-            
-        } while (!isValid);
-        
-        movingObstacles.push(obstaclePosition);
-    }
-    
-    // 设置移动障碍物的移动间隔
-    if (obstacleMovementInterval) {
-        clearInterval(obstacleMovementInterval);
-    }
-    
-    // 根据难度设置移动速度
-    let movementSpeed;
-    switch (difficultySelect.value) {
-        case 'easy':
-            movementSpeed = 1000; // 每秒移动一次
-            break;
-        case 'medium':
-            movementSpeed = 800;
-            break;
-        case 'hard':
-            movementSpeed = 600;
-            break;
-        default:
-            movementSpeed = 1000;
-    }
-    
-    obstacleMovementInterval = setInterval(moveObstacles, movementSpeed);
+
 }
 
-// 移动障碍物
-function moveObstacles() {
-    if (isPaused || isGameOver) return;
-    
-    for (let obstacle of movingObstacles) {
-        // 随机改变方向 (10%概率)
-        if (Math.random() < 0.1) {
-            obstacle.direction = ['up', 'down', 'left', 'right'][Math.floor(Math.random() * 4)];
-        }
-        
-        // 保存原位置用于检测碰撞
-        const oldX = obstacle.x;
-        const oldY = obstacle.y;
-        
-        // 根据方向移动
-        switch (obstacle.direction) {
-            case 'up':
-                obstacle.y -= 1;
-                break;
-            case 'down':
-                obstacle.y += 1;
-                break;
-            case 'left':
-                obstacle.x -= 1;
-                break;
-            case 'right':
-                obstacle.x += 1;
-                break;
-        }
-        
-        // 处理边界穿越
-        if (obstacle.x < 0) {
-            obstacle.x = gridWidth - 1;
-        } else if (obstacle.x >= gridWidth) {
-            obstacle.x = 0;
-        }
-        
-        if (obstacle.y < 0) {
-            obstacle.y = gridHeight - 1;
-        } else if (obstacle.y >= gridHeight) {
-            obstacle.y = 0;
-        }
-        
-        // 检查是否与蛇碰撞
-        for (let segment of snake) {
-            if (segment.x === obstacle.x && segment.y === obstacle.y) {
-                // 如果与蛇头碰撞，游戏结束
-                if (segment === snake[0] && !powerUpActive) {
-                    gameOver();
-                    return;
-                }
-                // 如果与蛇身碰撞，回到原位置并改变方向
-                obstacle.x = oldX;
-                obstacle.y = oldY;
-                obstacle.direction = ['up', 'down', 'left', 'right'][Math.floor(Math.random() * 4)];
-                break;
-            }
-        }
-        
-        // 检查是否与静态障碍物碰撞
-        for (let staticObstacle of obstacles) {
-            if (staticObstacle.x === obstacle.x && staticObstacle.y === obstacle.y) {
-                // 回到原位置并改变方向
-                obstacle.x = oldX;
-                obstacle.y = oldY;
-                obstacle.direction = ['up', 'down', 'left', 'right'][Math.floor(Math.random() * 4)];
-                break;
-            }
-        }
-        
-        // 检查是否与其他移动障碍物碰撞
-        for (let otherObstacle of movingObstacles) {
-            if (otherObstacle !== obstacle && otherObstacle.x === obstacle.x && otherObstacle.y === obstacle.y) {
-                // 交换方向
-                const tempDirection = obstacle.direction;
-                obstacle.direction = otherObstacle.direction;
-                otherObstacle.direction = tempDirection;
-                
-                // 回到原位置
-                obstacle.x = oldX;
-                obstacle.y = oldY;
-                break;
-            }
-        }
-    }
-}
+
 
 // 初始化游戏
 function initGame() {
@@ -344,6 +168,7 @@ function initGame() {
     
     // 重置能力提升状态
     powerUpActive = false;
+    powerUpStartTime = null;
     if (powerUpTimer) {
         clearTimeout(powerUpTimer);
         powerUpTimer = null;
@@ -364,6 +189,7 @@ function initGame() {
     // 重置游戏状态
     isPaused = false;
     isGameOver = false;
+    isGameStarted = true;
     
     // 更新按钮状态
     startButton.disabled = true;
@@ -474,14 +300,6 @@ function generatePowerUp() {
             }
         }
         
-        // 检查是否与移动障碍物重叠
-        for (let obstacle of movingObstacles) {
-            if (obstacle.x === powerUpPosition.x && obstacle.y === powerUpPosition.y) {
-                isValid = false;
-                break;
-            }
-        }
-        
     } while (!isValid);
     
     powerUp = powerUpPosition;
@@ -498,31 +316,7 @@ function generatePowerUp() {
 function activatePowerUp(type) {
     powerUpActive = true;
     powerUpType = type;
-    
-    // 根据类型应用不同效果
-    switch (type) {
-        case 'invincible':
-            // 无敌效果 - 在碰撞检测中处理
-            break;
-        case 'speed':
-            // 加速效果
-            speedMultiplier += 0.3;
-            speedElement.textContent = speedMultiplier.toFixed(1);
-            // 更新游戏速度
-            clearInterval(gameInterval);
-            gameSpeed = speeds[difficultySelect.value] / speedMultiplier;
-            gameInterval = setInterval(gameLoop, gameSpeed);
-            break;
-        case 'slow':
-            // 减速效果
-            speedMultiplier = Math.max(0.7, speedMultiplier - 0.3);
-            speedElement.textContent = speedMultiplier.toFixed(1);
-            // 更新游戏速度
-            clearInterval(gameInterval);
-            gameSpeed = speeds[difficultySelect.value] / speedMultiplier;
-            gameInterval = setInterval(gameLoop, gameSpeed);
-            break;
-    }
+    powerUpStartTime = Date.now(); // 记录开始时间
     
     // 设置能力提升持续时间
     if (powerUpTimer) {
@@ -538,27 +332,9 @@ function activatePowerUp(type) {
 function deactivatePowerUp() {
     if (!powerUpActive) return;
     
-    // 根据类型恢复不同效果
-    if (powerUpType === 'speed') {
-        // 恢复速度
-        speedMultiplier = Math.max(1.0, speedMultiplier - 0.3);
-        speedElement.textContent = speedMultiplier.toFixed(1);
-        // 更新游戏速度
-        clearInterval(gameInterval);
-        gameSpeed = speeds[difficultySelect.value] / speedMultiplier;
-        gameInterval = setInterval(gameLoop, gameSpeed);
-    } else if (powerUpType === 'slow') {
-        // 恢复速度
-        speedMultiplier += 0.3;
-        speedElement.textContent = speedMultiplier.toFixed(1);
-        // 更新游戏速度
-        clearInterval(gameInterval);
-        gameSpeed = speeds[difficultySelect.value] / speedMultiplier;
-        gameInterval = setInterval(gameLoop, gameSpeed);
-    }
-    
     powerUpActive = false;
     powerUpType = null;
+    powerUpStartTime = null;
     
     if (powerUpTimer) {
         clearTimeout(powerUpTimer);
@@ -604,12 +380,9 @@ function update() {
     }
     
     // 检查是否游戏结束（碰到自己或障碍物）
-    // 如果有无敌能力提升，则不会游戏结束
-    if (!powerUpActive || powerUpType !== 'invincible') {
-        if (isCollisionWithSnake(head) || isCollisionWithObstacle(head)) {
-            gameOver();
-            return;
-        }
+    if (isCollisionWithSnake(head) || isCollisionWithObstacle(head)) {
+        gameOver();
+        return;
     }
     
     // 将新的头部添加到蛇身前面
@@ -619,8 +392,10 @@ function update() {
     
     // 检查是否吃到普通食物
     if (head.x === food.x && head.y === food.y) {
-        // 增加分数
-        score += 10;
+        // 增加分数（如果有得分翻倍效果，则翻倍）
+        const baseScore = 10;
+        const finalScore = powerUpActive && powerUpType === 'doubleScore' ? baseScore * 2 : baseScore;
+        score += finalScore;
         scoreElement.textContent = score;
         
         // 增加食物计数
@@ -662,10 +437,11 @@ function update() {
         // 计算分数：根据吃到大食物的速度给予奖励
         // 越快吃到分数越高，最高BIG_FOOD_MAX_SCORE分
         const timeRatio = 1 - (bigFoodExistTime / BIG_FOOD_DURATION);
-        const bonusScore = Math.max(10, Math.floor(timeRatio * BIG_FOOD_MAX_SCORE));
+        const baseBonusScore = Math.max(10, Math.floor(timeRatio * BIG_FOOD_MAX_SCORE));
+        const finalBonusScore = powerUpActive && powerUpType === 'doubleScore' ? baseBonusScore * 2 : baseBonusScore;
         
         // 增加分数
-        score += bonusScore;
+        score += finalBonusScore;
         scoreElement.textContent = score;
         
         // 清除大食物计时器
@@ -791,74 +567,7 @@ function draw() {
         ctx.stroke();
     });
     
-    // 绘制移动障碍物
-    movingObstacles.forEach(obstacle => {
-        const obstacleCenterX = obstacle.x * gridSize + gridSize/2;
-        const obstacleCenterY = obstacle.y * gridSize + gridSize/2;
-        
-        // 检查坐标是否为有效数字
-        if (isNaN(obstacleCenterX) || isNaN(obstacleCenterY) || !isFinite(obstacleCenterX) || !isFinite(obstacleCenterY)) {
-            return; // 跳过无效坐标
-        }
-        
-        try {
-            // 移动障碍物 - 渐变彩色
-            const obstacleGradient = ctx.createRadialGradient(
-                obstacleCenterX, 
-                obstacleCenterY, 
-                0,
-                obstacleCenterX, 
-                obstacleCenterY, 
-                Math.max(1, gridSize/1.5) // 确保半径大于0
-            );
-            obstacleGradient.addColorStop(0, obstacle.color || '#FF5722');
-            obstacleGradient.addColorStop(1, '#424242');
-            ctx.fillStyle = obstacleGradient;
-        } catch (e) {
-            // 如果渐变创建失败，使用纯色
-            ctx.fillStyle = obstacle.color || '#FF5722';
-        }
-        
-        // 绘制圆形
-        ctx.beginPath();
-        ctx.arc(obstacleCenterX, obstacleCenterY, gridSize/2 - 1, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // 添加闪烁效果
-        ctx.strokeStyle = '#FFFFFF';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-        
-        // 绘制方向指示器
-        ctx.beginPath();
-        ctx.strokeStyle = '#FFFFFF';
-        ctx.lineWidth = 2;
-        
-        const arrowSize = gridSize / 4;
-        let startX = obstacleCenterX;
-        let startY = obstacleCenterY;
-        let endX = startX;
-        let endY = startY;
-        
-        switch (obstacle.direction) {
-            case 'up':
-                endY -= arrowSize;
-                break;
-            case 'down':
-                endY += arrowSize;
-                break;
-            case 'left':
-                endX -= arrowSize;
-                break;
-            case 'right':
-                endX += arrowSize;
-                break;
-        }
-        
-        ctx.moveTo(startX, startY);
-        ctx.lineTo(endX, endY);
-        ctx.stroke();
-    });
+
     
     // 绘制能力提升道具
     if (powerUp) {
@@ -1191,7 +900,7 @@ function draw() {
         const activePowerUp = POWER_UP_TYPES.find(p => p.type === powerUpType);
         if (activePowerUp) {
             // 计算剩余时间
-            const remainingTime = Math.ceil((POWER_UP_DURATION - (Date.now() - powerUpTimer)) / 1000);
+            const remainingTime = Math.ceil((POWER_UP_DURATION - (Date.now() - powerUpStartTime)) / 1000);
             
             // 绘制能力提升状态
             ctx.fillStyle = activePowerUp.color;
@@ -1199,20 +908,7 @@ function draw() {
             ctx.textAlign = 'center';
             ctx.fillText(`${activePowerUp.name}效果: ${remainingTime}秒`, canvas.width / 2, 20);
             
-            // 绘制光环效果
-            if (powerUpType === 'invincible') {
-                // 为蛇头添加无敌光环
-                const headX = snake[0].x * gridSize + gridSize/2;
-                const headY = snake[0].y * gridSize + gridSize/2;
-                
-                ctx.beginPath();
-                ctx.arc(headX, headY, gridSize, 0, Math.PI * 2);
-                ctx.strokeStyle = activePowerUp.color;
-                ctx.globalAlpha = 0.7;
-                ctx.lineWidth = 3;
-                ctx.stroke();
-                ctx.globalAlpha = 1.0;
-            }
+
         }
     }
     
@@ -1330,6 +1026,112 @@ function draw() {
         ctx.font = '16px Arial';
         ctx.fillStyle = '#BBDEFB';
         ctx.fillText('按空格键或点击开始按钮重新开始', canvas.width / 2, canvas.height / 2 + 85);
+    }
+    // 如果游戏未开始，显示欢迎画面
+    else if (!isGameStarted) {
+        try {
+            // 半透明黑色背景
+            const welcomeGradient = ctx.createRadialGradient(
+                canvas.width / 2,
+                canvas.height / 2,
+                0,
+                canvas.width / 2,
+                canvas.height / 2,
+                Math.max(1, canvas.width / 1.5)
+            );
+            welcomeGradient.addColorStop(0, 'rgba(0, 0, 0, 0.7)');
+            welcomeGradient.addColorStop(1, 'rgba(0, 0, 0, 0.9)');
+            
+            ctx.fillStyle = welcomeGradient;
+        } catch (e) {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+        }
+        
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // 绘制欢迎标题
+        ctx.font = 'bold 40px Arial';
+        ctx.textAlign = 'center';
+        
+        // 文字阴影
+        ctx.shadowColor = 'rgba(33, 150, 243, 0.5)';
+        ctx.shadowBlur = 10;
+        ctx.shadowOffsetX = 2;
+        ctx.shadowOffsetY = 2;
+        
+        try {
+            // 渐变文字
+            const textGradient = ctx.createLinearGradient(
+                canvas.width / 2 - 100,
+                canvas.height / 2 - 30,
+                canvas.width / 2 + 100,
+                canvas.height / 2 - 10
+            );
+            textGradient.addColorStop(0, '#2196F3');
+            textGradient.addColorStop(0.5, '#4CAF50');
+            textGradient.addColorStop(1, '#2196F3');
+            
+            ctx.fillStyle = textGradient;
+        } catch (e) {
+            ctx.fillStyle = '#2196F3';
+        }
+        
+        ctx.fillText('欢迎来到贪吃蛇', canvas.width / 2, canvas.height / 2 - 30);
+        
+        // 重置阴影
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+        
+        // 绘制游戏说明
+        ctx.font = 'bold 18px Arial';
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillText('点击"开始游戏"按钮开始游戏', canvas.width / 2, canvas.height / 2 + 20);
+        
+        // 绘制控制说明
+        ctx.font = '16px Arial';
+        ctx.fillStyle = '#FFECB3';
+        ctx.fillText('使用方向键或WASD控制蛇的移动', canvas.width / 2, canvas.height / 2 + 50);
+        ctx.fillText('空格键暂停/继续游戏', canvas.width / 2, canvas.height / 2 + 75);
+        
+        // 绘制装饰性边框
+        const borderWidth = Math.min(300, canvas.width - 40);
+        const borderHeight = Math.min(200, canvas.height - 40);
+        const borderX = (canvas.width - borderWidth) / 2;
+        const borderY = (canvas.height - borderHeight) / 2 - 20;
+        
+        try {
+            ctx.strokeStyle = textGradient;
+        } catch (e) {
+            ctx.strokeStyle = '#2196F3';
+        }
+        
+        ctx.lineWidth = 3;
+        
+        // 绘制圆角矩形边框
+        ctx.beginPath();
+        try {
+            if (typeof ctx.roundRect === 'function') {
+                ctx.roundRect(borderX, borderY, borderWidth, borderHeight, 15);
+            } else {
+                const radius = 15;
+                ctx.moveTo(borderX + radius, borderY);
+                ctx.lineTo(borderX + borderWidth - radius, borderY);
+                ctx.quadraticCurveTo(borderX + borderWidth, borderY, borderX + borderWidth, borderY + radius);
+                ctx.lineTo(borderX + borderWidth, borderY + borderHeight - radius);
+                ctx.quadraticCurveTo(borderX + borderWidth, borderY + borderHeight, borderX + borderWidth - radius, borderY + borderHeight);
+                ctx.lineTo(borderX + radius, borderY + borderHeight);
+                ctx.quadraticCurveTo(borderX, borderY + borderHeight, borderX, borderY + borderHeight - radius);
+                ctx.lineTo(borderX, borderY + radius);
+                ctx.quadraticCurveTo(borderX, borderY, borderX + radius, borderY);
+                ctx.closePath();
+            }
+        } catch (e) {
+            ctx.rect(borderX, borderY, borderWidth, borderHeight);
+        }
+        
+        ctx.stroke();
     }
 }
 
@@ -1500,11 +1302,7 @@ function gameOver() {
         bigFoodTimer = null;
     }
     
-    // 清除障碍物移动定时器
-    if (obstacleMovementInterval) {
-        clearInterval(obstacleMovementInterval);
-        obstacleMovementInterval = null;
-    }
+
     
     // 清除能力提升计时器
     if (powerUpTimer) {

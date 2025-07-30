@@ -10,15 +10,7 @@ body {
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
-    background-size: 400% 400%;
-    animation: gradientBG 15s ease infinite;
-}
-
-@keyframes gradientBG {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
+    background: #2c3e50;
 }
 
 .game-container {
@@ -45,7 +37,7 @@ body {
 }
 
 h1 {
-    color: #333;
+    color: #2196F3;
     font-size: 2.8rem;
     font-weight: 700;
     text-transform: uppercase;
@@ -55,18 +47,13 @@ h1 {
     position: relative;
     display: block;
     text-align: center;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
-    background: linear-gradient(90deg, #2196F3, #E91E63, #FFC107);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    animation: titleGlow 3s ease-in-out infinite;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
 }
 
-@keyframes titleGlow {
-    0%, 100% { text-shadow: 0 0 5px rgba(33, 150, 243, 0.5); }
-    50% { text-shadow: 0 0 15px rgba(233, 30, 99, 0.7); }
-}
+
 
 h1::before, h1::after {
     content: '';
@@ -97,6 +84,9 @@ h1 span {
     padding: 0 15px;
     font-weight: 800;
     text-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
 }
 
 h1 span::after {
