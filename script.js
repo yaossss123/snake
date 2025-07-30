@@ -377,10 +377,10 @@ function initGame() {
         survivalLevel = 1;
         survivalTimer = 0;
         speedMultiplier = 1.0;
-        document.getElementById('survival-container').style.display = 'inline-block';
+        document.getElementById('survival-info').classList.add('visible');
         document.getElementById('survival-level').textContent = survivalLevel;
     } else {
-        document.getElementById('survival-container').style.display = 'none';
+        document.getElementById('survival-info').classList.remove('visible');
     }
     
     // 更新大食物状态显示
@@ -1726,6 +1726,15 @@ difficultySelect.addEventListener('change', () => {
     // 更新最高分显示
     updateHighScoreDisplay();
     
+    // 更新生存模式显示
+    const isSurvival = difficultySelect.value === 'survival';
+    if (isSurvival) {
+        document.getElementById('survival-info').classList.add('visible');
+        document.getElementById('survival-level').textContent = '1';
+    } else {
+        document.getElementById('survival-info').classList.remove('visible');
+    }
+    
     if (!isGameOver && !isPaused) {
         // 更新游戏速度，考虑当前速度倍率
         gameSpeed = speeds[difficultySelect.value] / speedMultiplier;
@@ -1743,6 +1752,15 @@ canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
 
 // 初始化历史记录显示
 updateHighScoreDisplay();
+
+// 初始化生存模式显示
+const initialDifficulty = difficultySelect.value;
+if (initialDifficulty === 'survival') {
+    document.getElementById('survival-info').classList.add('visible');
+    document.getElementById('survival-level').textContent = '1';
+} else {
+    document.getElementById('survival-info').classList.remove('visible');
+}
 
 // 初始化主题显示
 updateTheme();
