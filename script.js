@@ -4,6 +4,8 @@ const ctx = canvas.getContext('2d');
 const scoreElement = document.getElementById('score');
 const speedElement = document.getElementById('speed');
 const bigFoodStatusElement = document.getElementById('big-food-status');
+const highScoreElement = document.getElementById('high-score');
+const currentThemeElement = document.getElementById('current-theme');
 const startButton = document.getElementById('start-btn');
 const pauseButton = document.getElementById('pause-btn');
 const difficultySelect = document.getElementById('difficulty-select');
@@ -35,10 +37,117 @@ let powerUpTimer = null; // 能力提升计时器
 let powerUpType = null; // 能力提升类型
 let powerUpStartTime = null; // 能力提升开始时间
 
+// 主题系统变量
+let currentTheme = 'spring'; // 当前主题
+let themeChangeTime = 0; // 主题变化时间
+let backgroundOffset = 0; // 背景动画偏移
+
 // 大食物配置
 const BIG_FOOD_DURATION = 10000; // 大食物持续时间（毫秒）
 const BIG_FOOD_APPEAR_THRESHOLD = 3; // 每吃几个普通食物出现大食物
 const BIG_FOOD_MAX_SCORE = 50; // 大食物最高分数
+
+// 历史记录相关函数
+function loadHighScore() {
+    const savedHighScore = localStorage.getItem('snakeHighScore');
+    return savedHighScore ? parseInt(savedHighScore) : 0;
+}
+
+function saveHighScore(score) {
+    localStorage.setItem('snakeHighScore', score.toString());
+}
+
+function updateHighScore(score) {
+    const currentHighScore = loadHighScore();
+    if (score > currentHighScore) {
+        saveHighScore(score);
+        highScoreElement.textContent = score;
+        return true; // 返回true表示创造了新纪录
+    }
+    return false; // 返回false表示没有创造新纪录
+}
+
+// 主题系统函数
+function getCurrentTheme() {
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    const day = now.getDate();
+    
+    // 节日主题优先级最高
+    if (month === 1 && day >= 20 && day <= 30) return 'chineseNewYear'; // 春节
+    if (month === 10 && day >= 25 && day <= 31) return 'halloween'; // 万圣节
+    
+    // 季节主题
+    if (month >= 3 && month <= 5) return 'spring'; // 春季
+    if (month >= 6 && month <= 8) return 'summer'; // 夏季
+    if (month >= 9 && month <= 11) return 'autumn'; // 秋季
+    return 'winter'; // 冬季
+}
+
+function updateTheme() {
+    const newTheme = getCurrentTheme();
+    if (newTheme !== currentTheme) {
+        currentTheme = newTheme;
+        themeChangeTime = Date.now();
+        // 更新主题显示
+        currentThemeElement.textContent = THEMES[currentTheme].name;
+    }
+}
+
+// 粒子系统函数
+function createParticles(x, y, colors) {
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+        const angle = (Math.PI * 2 * i) / PARTICLE_COUNT;
+        const speed = 2 + Math.random() * 3;
+        const particle = {
+            x: x,
+            y: y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            life: PARTICLE_LIFETIME,
+            maxLife: PARTICLE_LIFETIME,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            size: 3 + Math.random() * 4
+        };
+        particles.push(particle);
+    }
+}
+
+function updateParticles() {
+    for (let i = particles.length - 1; i >= 0; i--) {
+        const particle = particles[i];
+        particle.x += particle.vx;
+        particle.y += particle.vy;
+        particle.vy += 0.1; // 重力
+        particle.life--;
+        
+        if (particle.life <= 0) {
+            particles.splice(i, 1);
+        }
+    }
+}
+
+function drawParticles() {
+    particles.forEach(particle => {
+        const alpha = particle.life / particle.maxLife;
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = particle.color;
+        ctx.beginPath();
+        ctx.arc(particle.x, particle.y, particle.size * alpha, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    });
+}
+
+// 颜色调整函数
+function adjustColor(color, amount) {
+    const hex = color.replace('#', '');
+    const r = Math.max(0, Math.min(255, parseInt(hex.substr(0, 2), 16) + amount));
+    const g = Math.max(0, Math.min(255, parseInt(hex.substr(2, 2), 16) + amount));
+    const b = Math.max(0, Math.min(255, parseInt(hex.substr(4, 2), 16) + amount));
+    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+}
 
 // 能力提升道具配置
 const POWER_UP_DURATION = 15000; // 能力提升持续时间（毫秒）
@@ -46,6 +155,69 @@ const POWER_UP_APPEAR_CHANCE = 0.15; // 每次吃食物后出现能力提升道�
 const POWER_UP_TYPES = [
     { type: 'doubleScore', color: '#FFD700', name: '得分翻倍' } // 得分翻倍
 ];
+
+// 主题系统配置
+const THEMES = {
+    spring: {
+        name: '春季',
+        background: '#E8F4F8',
+        gridColor: '#C8E6C9',
+        snakeColor: '#4CAF50',
+        foodColor: '#E91E63',
+        obstacleColor: '#8D6E63',
+        particles: ['#E91E63', '#4CAF50', '#FFC107']
+    },
+    summer: {
+        name: '夏季',
+        background: '#FFF8E1',
+        gridColor: '#FFCC80',
+        snakeColor: '#FF5722',
+        foodColor: '#E91E63',
+        obstacleColor: '#4CAF50',
+        particles: ['#E91E63', '#FF5722', '#FFC107']
+    },
+    autumn: {
+        name: '秋季',
+        background: '#FBE9E7',
+        gridColor: '#D7CCC8',
+        snakeColor: '#795548',
+        foodColor: '#FF7043',
+        obstacleColor: '#546E7A',
+        particles: ['#FF7043', '#795548', '#D7CCC8']
+    },
+    winter: {
+        name: '冬季',
+        background: '#F5F5F5',
+        gridColor: '#E0E0E0',
+        snakeColor: '#3F51B5',
+        foodColor: '#F44336',
+        obstacleColor: '#9E9E9E',
+        particles: ['#F44336', '#3F51B5', '#FFFFFF']
+    },
+    chineseNewYear: {
+        name: '春节',
+        background: '#FFEBEE',
+        gridColor: '#FFF9C4',
+        snakeColor: '#FFC107',
+        foodColor: '#E91E63',
+        obstacleColor: '#C62828',
+        particles: ['#FFC107', '#E91E63', '#F44336']
+    },
+    halloween: {
+        name: '万圣节',
+        background: '#424242',
+        gridColor: '#8D6E63',
+        snakeColor: '#FF9800',
+        foodColor: '#FFC107',
+        obstacleColor: '#9C27B0',
+        particles: ['#FFC107', '#FF9800', '#9C27B0']
+    }
+};
+
+// 粒子系统
+let particles = [];
+const PARTICLE_LIFETIME = 60; // 粒子生命周期（帧数）
+const PARTICLE_COUNT = 15; // 每次爆炸的粒子数量
 
 // 难度设置
 const speeds = {
@@ -154,6 +326,10 @@ function initGame() {
     score = 0;
     scoreElement.textContent = score;
     
+    // 加载并显示历史最高分
+    const highScore = loadHighScore();
+    highScoreElement.textContent = highScore;
+    
     // 重置速度倍率
     speedMultiplier = 1.0;
     speedElement.textContent = speedMultiplier.toFixed(1);
@@ -173,6 +349,9 @@ function initGame() {
         clearTimeout(powerUpTimer);
         powerUpTimer = null;
     }
+    
+    // 清空粒子系统
+    particles = [];
     
     // 更新大食物状态显示
     updateBigFoodStatus();
@@ -392,6 +571,11 @@ function update() {
     
     // 检查是否吃到普通食物
     if (head.x === food.x && head.y === food.y) {
+        // 创建粒子效果
+        const foodCenterX = food.x * gridSize + gridSize/2;
+        const foodCenterY = food.y * gridSize + gridSize/2;
+        createParticles(foodCenterX, foodCenterY, THEMES[currentTheme].particles);
+        
         // 增加分数（如果有得分翻倍效果，则翻倍）
         const baseScore = 10;
         const finalScore = powerUpActive && powerUpType === 'doubleScore' ? baseScore * 2 : baseScore;
@@ -424,10 +608,7 @@ function update() {
             generateBigFood();
         }
         
-        // 随机生成能力提升道具
-        if (Math.random() < POWER_UP_APPEAR_CHANCE && !powerUp && !powerUpActive) {
-            generatePowerUp();
-        }
+
     }
     // 检查是否吃到大食物
     else if (bigFood && head.x === bigFood.x && head.y === bigFood.y) {
@@ -439,6 +620,11 @@ function update() {
         const timeRatio = 1 - (bigFoodExistTime / BIG_FOOD_DURATION);
         const baseBonusScore = Math.max(10, Math.floor(timeRatio * BIG_FOOD_MAX_SCORE));
         const finalBonusScore = powerUpActive && powerUpType === 'doubleScore' ? baseBonusScore * 2 : baseBonusScore;
+        
+        // 创建粒子效果
+        const bigFoodCenterX = bigFood.x * gridSize + gridSize/2;
+        const bigFoodCenterY = bigFood.y * gridSize + gridSize/2;
+        createParticles(bigFoodCenterX, bigFoodCenterY, THEMES[currentTheme].particles);
         
         // 增加分数
         score += finalBonusScore;
@@ -459,8 +645,11 @@ function update() {
         // 标记已吃到食物
         foodEaten = true;
         
-        // 大食物被吃掉后，有较高概率生成能力提升道具
-        if (Math.random() < POWER_UP_APPEAR_CHANCE * 2 && !powerUp && !powerUpActive) {
+        // 大食物被吃掉后，根据吃掉速度计算能力提升道具生成概率
+        // 越快吃掉大食物，生成概率越高
+        const powerUpChance = Math.min(0.8, POWER_UP_APPEAR_CHANCE + timeRatio * 0.6); // 最高80%概率
+        
+        if (Math.random() < powerUpChance && !powerUp && !powerUpActive) {
             generatePowerUp();
         }
     }
@@ -505,8 +694,25 @@ function isCollisionWithObstacle(position) {
 
 // 绘制游戏
 function draw() {
-    // 清空画布
-    ctx.fillStyle = '#1E1E2E';
+    // 更新主题
+    updateTheme();
+    
+    // 获取当前主题
+    const theme = THEMES[currentTheme];
+    
+    // 绘制动态背景
+    const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+    gradient.addColorStop(0, theme.background);
+    gradient.addColorStop(1, adjustColor(theme.background, -20));
+    
+    // 添加背景动画
+    backgroundOffset += 0.5;
+    const pattern = ctx.createLinearGradient(0, 0, canvas.width + backgroundOffset, canvas.height + backgroundOffset);
+    pattern.addColorStop(0, theme.background);
+    pattern.addColorStop(0.5, adjustColor(theme.background, 10));
+    pattern.addColorStop(1, theme.background);
+    
+    ctx.fillStyle = pattern;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
     // 绘制网格背景
@@ -569,67 +775,71 @@ function draw() {
     
 
     
-    // 绘制能力提升道具
+    // 绘制能力提升道具 - 特殊图标
     if (powerUp) {
         const powerUpCenterX = powerUp.x * gridSize + gridSize/2;
         const powerUpCenterY = powerUp.y * gridSize + gridSize/2;
+        const powerUpRadius = Math.max(1, gridSize/2 - 1);
         
         // 检查坐标是否为有效数字
         if (!isNaN(powerUpCenterX) && !isNaN(powerUpCenterY) && isFinite(powerUpCenterX) && isFinite(powerUpCenterY)) {
-            try {
-                // 能力提升道具 - 渐变色
-                const powerUpGradient = ctx.createRadialGradient(
-                    powerUpCenterX, 
-                    powerUpCenterY, 
-                    0,
-                    powerUpCenterX, 
-                    powerUpCenterY, 
-                    Math.max(1, gridSize/1.8) // 确保半径大于0
-                );
-                powerUpGradient.addColorStop(0, powerUp.color);
-                powerUpGradient.addColorStop(1, '#FFFFFF');
-                ctx.fillStyle = powerUpGradient;
-            } catch (e) {
-                // 如果渐变创建失败，使用纯色
-                ctx.fillStyle = powerUp.color;
-            }
-            
-            // 绘制星形
-            const spikes = 5;
-            const outerRadius = gridSize/2 - 2;
-            const innerRadius = outerRadius/2;
-            
+            // 绘制外圈光环
             ctx.beginPath();
-            ctx.save();
-            ctx.translate(powerUpCenterX, powerUpCenterY);
-            ctx.rotate(Math.PI / 2 * 3);
+            ctx.arc(powerUpCenterX, powerUpCenterY, powerUpRadius + 3, 0, Math.PI * 2);
+            ctx.strokeStyle = '#FFD700';
+            ctx.lineWidth = 3;
+            ctx.stroke();
             
-            ctx.moveTo(0, -outerRadius);
-            for (let i = 0; i < spikes; i++) {
-                ctx.rotate(Math.PI / spikes);
-                ctx.lineTo(0, -innerRadius);
-                ctx.rotate(Math.PI / spikes);
-                ctx.lineTo(0, -outerRadius);
+            // 绘制内圈背景
+            ctx.beginPath();
+            ctx.arc(powerUpCenterX, powerUpCenterY, powerUpRadius, 0, Math.PI * 2);
+            ctx.fillStyle = '#FFD700';
+            ctx.fill();
+            
+            // 绘制闪电图标
+            ctx.beginPath();
+            ctx.fillStyle = '#FFFFFF';
+            
+            // 闪电形状 - 更明显的设计
+            const lightningPoints = [
+                {x: powerUpCenterX - 4, y: powerUpCenterY - 8},
+                {x: powerUpCenterX + 3, y: powerUpCenterY - 3},
+                {x: powerUpCenterX - 2, y: powerUpCenterY},
+                {x: powerUpCenterX + 5, y: powerUpCenterY + 8},
+                {x: powerUpCenterX - 2, y: powerUpCenterY + 3},
+                {x: powerUpCenterX - 4, y: powerUpCenterY - 3}
+            ];
+            
+            ctx.moveTo(lightningPoints[0].x, lightningPoints[0].y);
+            for (let i = 1; i < lightningPoints.length; i++) {
+                ctx.lineTo(lightningPoints[i].x, lightningPoints[i].y);
             }
-            
             ctx.closePath();
             ctx.fill();
             
-            // 添加闪烁边框
-            ctx.strokeStyle = '#FFFFFF';
-            ctx.lineWidth = 1;
-            ctx.stroke();
-            ctx.restore();
+            // 添加脉冲动画效果
+            const pulseScale = 1 + 0.15 * Math.sin(Date.now() * 0.008);
+            ctx.save();
+            ctx.translate(powerUpCenterX, powerUpCenterY);
+            ctx.scale(pulseScale, pulseScale);
+            ctx.translate(-powerUpCenterX, -powerUpCenterY);
             
-            // 添加脉动动画效果
-            const pulseSize = 2 * Math.sin(Date.now() / 200) + 2;
+            // 重新绘制外圈光环（带动画）
             ctx.beginPath();
-            ctx.arc(powerUpCenterX, powerUpCenterY, outerRadius + pulseSize, 0, Math.PI * 2);
-            ctx.strokeStyle = powerUp.color;
-            ctx.globalAlpha = 0.5;
+            ctx.arc(powerUpCenterX, powerUpCenterY, powerUpRadius + 3, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(255, 215, 0, 0.6)';
             ctx.lineWidth = 2;
             ctx.stroke();
-            ctx.globalAlpha = 1.0;
+            
+            ctx.restore();
+            
+            // 添加闪烁效果
+            const blinkAlpha = 0.3 + 0.7 * Math.sin(Date.now() * 0.01);
+            ctx.beginPath();
+            ctx.arc(powerUpCenterX, powerUpCenterY, powerUpRadius + 6, 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(255, 215, 0, ${blinkAlpha})`;
+            ctx.lineWidth = 1;
+            ctx.stroke();
         }
     }
     
@@ -1133,6 +1343,10 @@ function draw() {
         
         ctx.stroke();
     }
+    
+    // 更新和绘制粒子
+    updateParticles();
+    drawParticles();
 }
 
 // 更新大食物状态显示
@@ -1198,9 +1412,10 @@ function generateBigFood() {
 
 // 绘制网格背景
 function drawGrid() {
-    const gridColor = 'rgba(255, 255, 255, 0.05)';
-    ctx.strokeStyle = gridColor;
+    const theme = THEMES[currentTheme];
+    ctx.strokeStyle = theme.gridColor;
     ctx.lineWidth = 0.5;
+    ctx.globalAlpha = 0.3;
     
     // 绘制垂直线
     for (let x = 0; x <= canvas.width; x += gridSize) {
@@ -1217,6 +1432,8 @@ function drawGrid() {
         ctx.lineTo(canvas.width, y);
         ctx.stroke();
     }
+    
+    ctx.globalAlpha = 1.0;
 }
 
 // 绘制蛇的眼睛
@@ -1310,10 +1527,20 @@ function gameOver() {
         powerUpTimer = null;
     }
     
+    // 更新历史最高分
+    const isNewRecord = updateHighScore(score);
+    
     isGameOver = true;
     startButton.disabled = false;
     pauseButton.disabled = true;
     draw(); // 绘制游戏结束画面
+    
+    // 如果创造了新纪录，显示提示
+    if (isNewRecord) {
+        setTimeout(() => {
+            alert(`🎉 恭喜！你创造了新的最高分记录：${score}分！`);
+        }, 100);
+    }
 }
 
 // 暂停/继续游戏
@@ -1451,6 +1678,14 @@ document.addEventListener('keydown', handleKeydown);
 // 触摸控制
 canvas.addEventListener('touchstart', handleTouchStart, false);
 canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+
+// 初始化历史记录显示
+const initialHighScore = loadHighScore();
+highScoreElement.textContent = initialHighScore;
+
+// 初始化主题显示
+updateTheme();
+currentThemeElement.textContent = THEMES[currentTheme].name;
 
 // 初始绘制
 draw();

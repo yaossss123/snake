@@ -140,6 +140,18 @@ h1 span::after {
     text-shadow: 0 0 5px rgba(255, 193, 7, 0.3);
 }
 
+.high-score-container {
+    color: #E91E63;
+    border-left: 3px solid #E91E63;
+    text-shadow: 0 0 5px rgba(233, 30, 99, 0.3);
+}
+
+.theme-container {
+    color: #9C27B0;
+    border-left: 3px solid #9C27B0;
+    text-shadow: 0 0 5px rgba(156, 39, 176, 0.3);
+}
+
 #game-canvas {
     background-color: #222;
     border-radius: 8px;
