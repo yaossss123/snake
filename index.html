@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>贪吃蛇游戏</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <h1><span>贪吃蛇游戏</span></h1>
+            <div class="score-container">
+                <span>分数: </span>
+                <span id="score">0</span>
+            </div>
+            <div class="speed-container">
+                <span>速度: </span>
+                <span id="speed">1.0</span>
+                <span>x</span>
+            </div>
+            <div class="big-food-container">
+                <span>大食物: </span>
+                <span id="big-food-status">0/3</span>
+            </div>
+        </div>
+        <canvas id="game-canvas" width="400" height="400"></canvas>
+        <div class="controls">
+            <button id="start-btn">开始游戏</button>
+            <button id="pause-btn">暂停</button>
+            <div class="difficulty">
+                <span>难度: </span>
+                <select id="difficulty-select" aria-label="选择游戏难度">
+                    <option value="easy">简单</option>
+                    <option value="medium" selected>中等</option>
+                    <option value="hard">困难</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

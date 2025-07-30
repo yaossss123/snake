@@ -1,0 +1,267 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+    background-size: 400% 400%;
+    animation: gradientBG 15s ease infinite;
+}
+
+@keyframes gradientBG {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+.game-container {
+    text-align: center;
+    background-color: rgba(255, 255, 255, 0.9);
+    padding: 30px;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transform: translateY(0);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    max-width: 95vw;
+}
+
+.game-container:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+}
+
+.game-header {
+    margin-bottom: 20px;
+}
+
+h1 {
+    color: #333;
+    font-size: 2.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    margin: 10px auto 25px;
+    padding: 10px 20px;
+    position: relative;
+    display: block;
+    text-align: center;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+    background: linear-gradient(90deg, #2196F3, #E91E63, #FFC107);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: titleGlow 3s ease-in-out infinite;
+}
+
+@keyframes titleGlow {
+    0%, 100% { text-shadow: 0 0 5px rgba(33, 150, 243, 0.5); }
+    50% { text-shadow: 0 0 15px rgba(233, 30, 99, 0.7); }
+}
+
+h1::before, h1::after {
+    content: '';
+    position: absolute;
+    width: 15px;
+    height: 15px;
+    border: 3px solid #ff5722;
+    border-radius: 50%;
+    top: 50%;
+    transform: translateY(-50%);
+    animation: pulseCircle 2s infinite;
+    box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
+}
+
+h1::before {
+    left: 5%;
+    border-color: #2196F3;
+}
+
+h1::after {
+    right: 5%;
+    border-color: #FFC107;
+}
+
+h1 span {
+    position: relative;
+    display: inline-block;
+    padding: 0 15px;
+    font-weight: 800;
+    text-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+h1 span::after {
+    content: '';
+    position: absolute;
+    bottom: -10px;
+    left: 50%;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, transparent, #ff5722, #FFC107, #ff5722, transparent);
+    transform: translateX(-50%);
+    border-radius: 3px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+@keyframes pulseCircle {
+    0%, 100% { transform: translateY(-50%) scale(1); opacity: 0.7; }
+    50% { transform: translateY(-50%) scale(1.2); opacity: 1; }
+}
+
+.score-container, .speed-container, .big-food-container {
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 15px;
+    padding: 8px 15px;
+    border-radius: 30px;
+    display: inline-block;
+    background: rgba(0, 0, 0, 0.05);
+    box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+.score-container:hover, .speed-container:hover, .big-food-container:hover {
+    transform: scale(1.05);
+    background: rgba(0, 0, 0, 0.08);
+}
+
+.score-container {
+    color: #2196F3;
+    border-left: 3px solid #2196F3;
+}
+
+.speed-container {
+    color: #4CAF50;
+    border-left: 3px solid #4CAF50;
+}
+
+.big-food-container {
+    color: #FFC107;
+    border-left: 3px solid #FFC107;
+    text-shadow: 0 0 5px rgba(255, 193, 7, 0.3);
+}
+
+#game-canvas {
+    background-color: #222;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    border: 3px solid #333;
+    transition: box-shadow 0.3s ease;
+}
+
+#game-canvas:hover {
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+.controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 25px;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+button {
+    background: linear-gradient(145deg, #4CAF50, #388E3C);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    font-weight: 600;
+    margin: 4px 2px;
+    cursor: pointer;
+    border-radius: 50px;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 10px rgba(76, 175, 80, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: 0.5s;
+}
+
+button:hover {
+    background: linear-gradient(145deg, #43A047, #2E7D32);
+    transform: translateY(-3px);
+    box-shadow: 0 6px 15px rgba(76, 175, 80, 0.4);
+}
+
+button:hover::before {
+    left: 100%;
+}
+
+button:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 5px rgba(76, 175, 80, 0.3);
+}
+
+button:disabled {
+    background: linear-gradient(145deg, #9E9E9E, #757575);
+    cursor: not-allowed;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+#pause-btn {
+    background: linear-gradient(145deg, #f44336, #d32f2f);
+    box-shadow: 0 4px 10px rgba(244, 67, 54, 0.3);
+}
+
+#pause-btn:hover {
+    background: linear-gradient(145deg, #e53935, #c62828);
+    box-shadow: 0 6px 15px rgba(244, 67, 54, 0.4);
+}
+
+.difficulty {
+    display: flex;
+    align-items: center;
+}
+
+select {
+    margin-left: 10px;
+    padding: 12px 20px;
+    border-radius: 50px;
+    border: 1px solid #ddd;
+    font-size: 16px;
+    background-color: white;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    cursor: pointer;
+    appearance: none;
+    background-image: url('data:image/svg+xml;utf8,<svg fill="%23555" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>');
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 40px;
+}
+
+select:hover {
+    border-color: #4CAF50;
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+}
+
+select:focus {
+    outline: none;
+    border-color: #2196F3;
+    box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.3);
+}
