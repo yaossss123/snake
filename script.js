@@ -37,6 +37,13 @@ let powerUpTimer = null; // 能力提升计时器
 let powerUpType = null; // 能力提升类型
 let powerUpStartTime = null; // 能力提升开始时间
 
+// 生存模式变量
+let isSurvivalMode = false; // 是否为生存模式
+let survivalLevel = 1; // 生存模式等级
+let survivalTimer = 0; // 生存模式计时器
+let survivalObstacleInterval = 30000; // 每30秒增加障碍物
+let survivalSpeedIncrease = 0.1; // 每级速度增加
+
 // 主题系统变量
 let currentTheme = 'spring'; // 当前主题
 let themeChangeTime = 0; // 主题变化时间
@@ -48,13 +55,19 @@ const BIG_FOOD_APPEAR_THRESHOLD = 3; // 每吃几个普通食物出现大食物
 const BIG_FOOD_MAX_SCORE = 50; // 大食物最高分数
 
 // 历史记录相关函数
+function getCurrentDifficulty() {
+    return difficultySelect.value;
+}
+
 function loadHighScore() {
-    const savedHighScore = localStorage.getItem('snakeHighScore');
+    const difficulty = getCurrentDifficulty();
+    const savedHighScore = localStorage.getItem(`snakeHighScore_${difficulty}`);
     return savedHighScore ? parseInt(savedHighScore) : 0;
 }
 
 function saveHighScore(score) {
-    localStorage.setItem('snakeHighScore', score.toString());
+    const difficulty = getCurrentDifficulty();
+    localStorage.setItem(`snakeHighScore_${difficulty}`, score.toString());
 }
 
 function updateHighScore(score) {
@@ -65,6 +78,11 @@ function updateHighScore(score) {
         return true; // 返回true表示创造了新纪录
     }
     return false; // 返回false表示没有创造新纪录
+}
+
+function updateHighScoreDisplay() {
+    const currentHighScore = loadHighScore();
+    highScoreElement.textContent = currentHighScore;
 }
 
 // 主题系统函数
@@ -223,7 +241,8 @@ const PARTICLE_COUNT = 15; // 每次爆炸的粒子数量
 const speeds = {
     easy: 200,
     medium: 150,
-    hard: 100
+    hard: 100,
+    survival: 150 // 生存模式基础速度
 };
 
 // 初始速度倍率
@@ -233,9 +252,8 @@ let speedMultiplier = 1.0;
 function generateObstacles() {
     // 清空现有障碍物
     obstacles = [];
-    movingObstacles = [];
     
-    // 根据难度生成不同数量的静态障碍物
+    // 根据难度和生存模式生成不同数量的静态障碍物
     let obstacleCount;
     switch (difficultySelect.value) {
         case 'easy':
@@ -246,6 +264,9 @@ function generateObstacles() {
             break;
         case 'hard':
             obstacleCount = 25;
+            break;
+        case 'survival':
+            obstacleCount = 10 + (survivalLevel - 1) * 3; // 生存模式：基础10个 + 每级增加3个
             break;
         default:
             obstacleCount = 8;
@@ -303,8 +324,6 @@ function generateObstacles() {
         
         obstacles.push(obstaclePosition);
     }
-    
-
 }
 
 
@@ -327,8 +346,7 @@ function initGame() {
     scoreElement.textContent = score;
     
     // 加载并显示历史最高分
-    const highScore = loadHighScore();
-    highScoreElement.textContent = highScore;
+    updateHighScoreDisplay();
     
     // 重置速度倍率
     speedMultiplier = 1.0;
@@ -352,6 +370,18 @@ function initGame() {
     
     // 清空粒子系统
     particles = [];
+    
+    // 初始化生存模式
+    isSurvivalMode = difficultySelect.value === 'survival';
+    if (isSurvivalMode) {
+        survivalLevel = 1;
+        survivalTimer = 0;
+        speedMultiplier = 1.0;
+        document.getElementById('survival-container').style.display = 'inline-block';
+        document.getElementById('survival-level').textContent = survivalLevel;
+    } else {
+        document.getElementById('survival-container').style.display = 'none';
+    }
     
     // 更新大食物状态显示
     updateBigFoodStatus();
@@ -523,6 +553,39 @@ function deactivatePowerUp() {
 
 // 更新游戏状态
 function update() {
+    // 生存模式更新
+    if (isSurvivalMode) {
+        survivalTimer += gameSpeed;
+        
+        // 每30秒增加一次难度
+        if (survivalTimer >= survivalObstacleInterval) {
+            survivalLevel++;
+            survivalTimer = 0;
+            
+            // 增加速度
+            speedMultiplier += survivalSpeedIncrease;
+            speedElement.textContent = speedMultiplier.toFixed(1);
+            
+            // 重新生成障碍物（增加数量）
+            generateObstacles();
+            
+            // 更新游戏速度
+            clearInterval(gameInterval);
+            gameSpeed = speeds[difficultySelect.value] / speedMultiplier;
+            gameInterval = setInterval(gameLoop, gameSpeed);
+            
+            // 更新生存等级显示
+            document.getElementById('survival-level').textContent = survivalLevel;
+            
+            // 显示等级提升提示
+            setTimeout(() => {
+                if (!isGameOver) {
+                    alert(`🎉 生存模式等级提升到 ${survivalLevel}！\n障碍物增加，速度提升！`);
+                }
+            }, 100);
+        }
+    }
+    
     // 更新蛇的方向
     direction = nextDirection;
     
@@ -775,71 +838,67 @@ function draw() {
     
 
     
-    // 绘制能力提升道具 - 特殊图标
+    // 绘制能力提升道具
     if (powerUp) {
         const powerUpCenterX = powerUp.x * gridSize + gridSize/2;
         const powerUpCenterY = powerUp.y * gridSize + gridSize/2;
-        const powerUpRadius = Math.max(1, gridSize/2 - 1);
         
         // 检查坐标是否为有效数字
         if (!isNaN(powerUpCenterX) && !isNaN(powerUpCenterY) && isFinite(powerUpCenterX) && isFinite(powerUpCenterY)) {
-            // 绘制外圈光环
-            ctx.beginPath();
-            ctx.arc(powerUpCenterX, powerUpCenterY, powerUpRadius + 3, 0, Math.PI * 2);
-            ctx.strokeStyle = '#FFD700';
-            ctx.lineWidth = 3;
-            ctx.stroke();
-            
-            // 绘制内圈背景
-            ctx.beginPath();
-            ctx.arc(powerUpCenterX, powerUpCenterY, powerUpRadius, 0, Math.PI * 2);
-            ctx.fillStyle = '#FFD700';
-            ctx.fill();
-            
-            // 绘制闪电图标
-            ctx.beginPath();
-            ctx.fillStyle = '#FFFFFF';
-            
-            // 闪电形状 - 更明显的设计
-            const lightningPoints = [
-                {x: powerUpCenterX - 4, y: powerUpCenterY - 8},
-                {x: powerUpCenterX + 3, y: powerUpCenterY - 3},
-                {x: powerUpCenterX - 2, y: powerUpCenterY},
-                {x: powerUpCenterX + 5, y: powerUpCenterY + 8},
-                {x: powerUpCenterX - 2, y: powerUpCenterY + 3},
-                {x: powerUpCenterX - 4, y: powerUpCenterY - 3}
-            ];
-            
-            ctx.moveTo(lightningPoints[0].x, lightningPoints[0].y);
-            for (let i = 1; i < lightningPoints.length; i++) {
-                ctx.lineTo(lightningPoints[i].x, lightningPoints[i].y);
+            try {
+                // 能力提升道具 - 渐变色
+                const powerUpGradient = ctx.createRadialGradient(
+                    powerUpCenterX, 
+                    powerUpCenterY, 
+                    0,
+                    powerUpCenterX, 
+                    powerUpCenterY, 
+                    Math.max(1, gridSize/1.8) // 确保半径大于0
+                );
+                powerUpGradient.addColorStop(0, powerUp.color);
+                powerUpGradient.addColorStop(1, '#FFFFFF');
+                ctx.fillStyle = powerUpGradient;
+            } catch (e) {
+                // 如果渐变创建失败，使用纯色
+                ctx.fillStyle = powerUp.color;
             }
+            
+            // 绘制星形
+            const spikes = 5;
+            const outerRadius = gridSize/2 - 2;
+            const innerRadius = outerRadius/2;
+            
+            ctx.beginPath();
+            ctx.save();
+            ctx.translate(powerUpCenterX, powerUpCenterY);
+            ctx.rotate(Math.PI / 2 * 3);
+            
+            ctx.moveTo(0, -outerRadius);
+            for (let i = 0; i < spikes; i++) {
+                ctx.rotate(Math.PI / spikes);
+                ctx.lineTo(0, -innerRadius);
+                ctx.rotate(Math.PI / spikes);
+                ctx.lineTo(0, -outerRadius);
+            }
+            
             ctx.closePath();
             ctx.fill();
             
-            // 添加脉冲动画效果
-            const pulseScale = 1 + 0.15 * Math.sin(Date.now() * 0.008);
-            ctx.save();
-            ctx.translate(powerUpCenterX, powerUpCenterY);
-            ctx.scale(pulseScale, pulseScale);
-            ctx.translate(-powerUpCenterX, -powerUpCenterY);
-            
-            // 重新绘制外圈光环（带动画）
-            ctx.beginPath();
-            ctx.arc(powerUpCenterX, powerUpCenterY, powerUpRadius + 3, 0, Math.PI * 2);
-            ctx.strokeStyle = 'rgba(255, 215, 0, 0.6)';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            
-            ctx.restore();
-            
-            // 添加闪烁效果
-            const blinkAlpha = 0.3 + 0.7 * Math.sin(Date.now() * 0.01);
-            ctx.beginPath();
-            ctx.arc(powerUpCenterX, powerUpCenterY, powerUpRadius + 6, 0, Math.PI * 2);
-            ctx.strokeStyle = `rgba(255, 215, 0, ${blinkAlpha})`;
+            // 添加闪烁边框
+            ctx.strokeStyle = '#FFFFFF';
             ctx.lineWidth = 1;
             ctx.stroke();
+            ctx.restore();
+            
+            // 添加脉动动画效果
+            const pulseSize = 2 * Math.sin(Date.now() / 200) + 2;
+            ctx.beginPath();
+            ctx.arc(powerUpCenterX, powerUpCenterY, outerRadius + pulseSize, 0, Math.PI * 2);
+            ctx.strokeStyle = powerUp.color;
+            ctx.globalAlpha = 0.5;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.globalAlpha = 1.0;
         }
     }
     
@@ -1664,6 +1723,9 @@ function handleTouchMove(e) {
 startButton.addEventListener('click', initGame);
 pauseButton.addEventListener('click', togglePause);
 difficultySelect.addEventListener('change', () => {
+    // 更新最高分显示
+    updateHighScoreDisplay();
+    
     if (!isGameOver && !isPaused) {
         // 更新游戏速度，考虑当前速度倍率
         gameSpeed = speeds[difficultySelect.value] / speedMultiplier;
@@ -1680,8 +1742,7 @@ canvas.addEventListener('touchstart', handleTouchStart, false);
 canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
 
 // 初始化历史记录显示
-const initialHighScore = loadHighScore();
-highScoreElement.textContent = initialHighScore;
+updateHighScoreDisplay();
 
 // 初始化主题显示
 updateTheme();

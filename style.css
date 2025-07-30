@@ -152,6 +152,12 @@ h1 span::after {
     text-shadow: 0 0 5px rgba(156, 39, 176, 0.3);
 }
 
+.survival-container {
+    color: #FF5722;
+    border-left: 3px solid #FF5722;
+    text-shadow: 0 0 5px rgba(255, 87, 34, 0.3);
+}
+
 #game-canvas {
     background-color: #222;
     border-radius: 8px;
